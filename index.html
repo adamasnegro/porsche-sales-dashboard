@@ -2,157 +2,249 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Porsche Dashboard FIX</title>
+<title>Porsche BI Dashboard Pro</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
 body{margin:0;font-family:Arial;background:#0a0a0a;color:#fff}
-.container{padding:20px}
-select,button{padding:8px;margin:5px;background:#111;color:#fff;border:1px solid #333}
-button{background:#d40000}
-.card{background:#111;padding:10px;margin:5px;display:inline-block}
-.chart{background:#fff;border-radius:10px;padding:10px;margin-top:10px}
+.container{padding:20px;max-width:1400px;margin:auto}
+h1{margin-bottom:10px}
+
+.filters{display:flex;flex-wrap:wrap;gap:10px;margin:15px 0}
+select,button{
+padding:10px;background:#111;color:#fff;border:1px solid #333;border-radius:6px
+}
+button{background:#d40000;cursor:pointer}
+
+.cards{
+display:grid;
+grid-template-columns:repeat(4,1fr);
+gap:10px;
+margin:20px 0
+}
+
+.card{
+background:#151515;
+padding:15px;
+border-radius:10px;
+border:1px solid #222
+}
+
+.card h2{color:#d40000;margin:5px 0}
+
+.grid{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:15px;
+margin-top:20px
+}
+
+.chart-box{
+background:#fff;
+border-radius:10px;
+padding:10px
+}
 </style>
+
 </head>
 
 <body>
 
 <div class="container">
 
-<h1>Porsche Dashboard FIX</h1>
+<h1>PORSCHE SALES INTELLIGENCE PRO</h1>
 
+<div class="filters">
 <select id="model"></select>
 <select id="state"></select>
 <select id="year"></select>
+<select id="pay"></select>
 <button onclick="reset()">Reset</button>
+</div>
 
-<div class="card">Vendas: <span id="sales"></span></div>
+<div class="cards">
+<div class="card">
+Total Vendas
+<h2 id="totalSales">0</h2>
+</div>
 
-<div class="chart"><canvas id="c1"></canvas></div>
-<div class="chart"><canvas id="c2"></canvas></div>
+<div class="card">
+Receita
+<h2 id="revenue">0</h2>
+</div>
+
+<div class="card">
+Ticket Médio
+<h2 id="ticket">0</h2>
+</div>
+
+<div class="card">
+Modelos Ativos
+<h2 id="models">0</h2>
+</div>
+</div>
+
+<div class="grid">
+
+<div class="chart-box">
+<canvas id="chartModel"></canvas>
+</div>
+
+<div class="chart-box">
+<canvas id="chartState"></canvas>
+</div>
+
+<div class="chart-box">
+<canvas id="chartYear"></canvas>
+</div>
+
+<div class="chart-box">
+<canvas id="chartPay"></canvas>
+</div>
+
+</div>
 
 </div>
 
 <script>
 
-/* =================🔥 DADOS FORÇADOS COM DISTRIBUIÇÃO GARANTIDA ================= */
+/* ================= DATASET FORTE (NUNCA MAIS 1 BARRA) ================= */
 
 const models=["911","Cayenne","Macan","Taycan","Panamera"];
-const states=["SP","RJ","MG","RS","PR","SC","BA","DF"];
-const years=[2019,2020,2021,2022,2023,2024];
+const states=["SP","RJ","MG","RS","PR","SC","BA","DF","GO","ES"];
+const years=[2020,2021,2022,2023,2024,2025];
+const pay=["Cash","Financing","Credit Card","Lease"];
 
 let data=[];
 let id=1;
 
-/* 🔥 REGRA PRINCIPAL:
-   cada combinação TEM NO MÍNIMO 5 registros por estado
-   isso elimina o problema de "1 barra" */
+/* 🔥 MUITOS DADOS PARA GARANTIR COMPARAÇÃO */
 models.forEach(m=>{
 states.forEach(s=>{
 years.forEach(y=>{
+pay.forEach(p=>{
 
-for(let i=0;i<5;i++){ // <- ESSA LINHA GARANTE VARIAÇÃO SEMPRE
+for(let i=0;i<4;i++){
+
+let base={
+"911":900000,
+"Cayenne":600000,
+"Macan":450000,
+"Taycan":800000,
+"Panamera":700000
+}[m];
 
 data.push({
 id:id++,
 model:m,
 state:s,
 year:y,
-price: 400000 + Math.random()*600000
+pay:p,
+price:base+Math.random()*150000
 });
 
 }
 
-})})});
+})})})});
 
-/* ================= FILTROS ================= */
+/* ================= FILTERS ================= */
 
-let filters={model:"Todos",state:"Todos",year:"Todos"};
+let filters={model:"",state:"",year:"",pay:""};
 
-function filter(){
+function getFiltered(){
 return data.filter(d=>
-(filters.model==="Todos"||d.model===filters.model)&&
-(filters.state==="Todos"||d.state===filters.state)&&
-(filters.year==="Todos"||d.year==filters.year)
+(!filters.model||d.model===filters.model)&&
+(!filters.state||d.state===filters.state)&&
+(!filters.year||d.year==filters.year)&&
+(!filters.pay||d.pay===filters.pay)
 );
 }
 
 /* ================= GROUP ================= */
 
 function group(arr,key){
-let obj={};
+let o={};
 arr.forEach(d=>{
-obj[d[key]]=(obj[d[key]]||0)+1;
+o[d[key]]=(o[d[key]]||0)+1;
 });
-return Object.entries(obj);
+return Object.entries(o);
 }
 
 /* ================= CHART ================= */
 
-let c1,c2;
+let c1,c2,c3,c4;
 
-function update(){
+function render(){
 
-let d=filter();
+let d=getFiltered();
 
-/* KPI */
-document.getElementById("sales").innerText=d.length;
+let revenue=d.reduce((a,b)=>a+b.price,0);
 
-/* 🔥 SEMPRE GARANTE DISTRIBUIÇÃO */
-let g1=group(d,"state");
-let g2=group(d,"model");
+document.getElementById("totalSales").innerText=d.length;
+document.getElementById("revenue").innerText="R$ "+revenue.toFixed(0);
+document.getElementById("ticket").innerText="R$ "+(revenue/(d.length||1)).toFixed(0);
+document.getElementById("models").innerText=new Set(d.map(x=>x.model)).size;
 
-/* DESTROY */
-if(c1)c1.destroy();
-if(c2)c2.destroy();
+/* MODELO */
+draw("chartModel",group(d,"model"),c1,(v)=>"#d40000");
 
-/* GRÁFICO 1 - ESTADOS */
-c1=new Chart(c1=document.getElementById("c1"),{
-type:"bar",
-data:{
-labels:g1.map(x=>x[0]),
-datasets:[{data:g1.map(x=>x[1]),backgroundColor:"#d40000"}]
-},
-options:{plugins:{legend:{display:false}}}
-});
+/* STATE */
+draw("chartState",group(d,"state"),c2,(v)=>"#888");
 
-/* GRÁFICO 2 - MODELOS */
-c2=new Chart(c2=document.getElementById("c2"),{
-type:"bar",
-data:{
-labels:g2.map(x=>x[0]),
-datasets:[{data:g2.map(x=>x[1]),backgroundColor:"#555"}]
-},
-options:{plugins:{legend:{display:false}}}
-});
+/* YEAR */
+draw("chartYear",group(d,"year"),c3,(v)=>"#c8a45d");
+
+/* PAY */
+draw("chartPay",group(d,"pay"),c4,(v)=>"#444");
 
 }
 
-/* ================= INIT ================= */
+function draw(id,arr,chart,color){
 
-function init(){
+if(chart)chart.destroy();
 
-let fill=(id,key)=>{
+chart=new Chart(document.getElementById(id),{
+type:"bar",
+data:{
+labels:arr.map(x=>x[0]),
+datasets:[{
+data:arr.map(x=>x[1]),
+backgroundColor:"#d40000"
+}]
+},
+options:{
+plugins:{legend:{display:false}}
+}
+});
+
+if(id=="chartModel")c1=chart;
+if(id=="chartState")c2=chart;
+if(id=="chartYear")c3=chart;
+if(id=="chartPay")c4=chart;
+
+}
+
+/* ================= FILTER POPULATE ================= */
+
+function fill(id,key){
 let el=document.getElementById(id);
 let vals=[...new Set(data.map(d=>d[key]))];
-el.innerHTML="<option>Todos</option>"+vals.map(v=>`<option>${v}</option>`).join("");
-el.onchange=()=>{filters[id]=el.value;update();}
-};
+el.innerHTML="<option value=''>Todos</option>"+vals.map(v=>`<option>${v}</option>`).join("");
+el.onchange=()=>{filters[id]=el.value;render();}
+}
 
 fill("model","model");
 fill("state","state");
 fill("year","year");
-
-update();
-}
+fill("pay","pay");
 
 function reset(){
-filters={model:"Todos",state:"Todos",year:"Todos"};
-init();
-update();
+filters={model:"",state:"",year:"",pay:""};
+document.querySelectorAll("select").forEach(s=>s.value="");
+render();
 }
 
-init();
+render();
 
 </script>
 
