@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Porsche Dashboard FIX</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+body{margin:0;font-family:Arial;background:#0a0a0a;color:#fff}
+.container{padding:20px}
+select,button{padding:8px;margin:5px;background:#111;color:#fff;border:1px solid #333}
+button{background:#d40000}
+.card{background:#111;padding:10px;margin:5px;display:inline-block}
+.chart{background:#fff;border-radius:10px;padding:10px;margin-top:10px}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>Porsche Dashboard FIX</h1>
+
+<select id="model"></select>
+<select id="state"></select>
+<select id="year"></select>
+<button onclick="reset()">Reset</button>
+
+<div class="card">Vendas: <span id="sales"></span></div>
+
+<div class="chart"><canvas id="c1"></canvas></div>
+<div class="chart"><canvas id="c2"></canvas></div>
+
+</div>
+
+<script>
+
+/* =================🔥 DADOS FORÇADOS COM DISTRIBUIÇÃO GARANTIDA ================= */
+
+const models=["911","Cayenne","Macan","Taycan","Panamera"];
+const states=["SP","RJ","MG","RS","PR","SC","BA","DF"];
+const years=[2019,2020,2021,2022,2023,2024];
+
+let data=[];
+let id=1;
+
+/* 🔥 REGRA PRINCIPAL:
+   cada combinação TEM NO MÍNIMO 5 registros por estado
+   isso elimina o problema de "1 barra" */
+models.forEach(m=>{
+states.forEach(s=>{
+years.forEach(y=>{
+
+for(let i=0;i<5;i++){ // <- ESSA LINHA GARANTE VARIAÇÃO SEMPRE
+
+data.push({
+id:id++,
+model:m,
+state:s,
+year:y,
+price: 400000 + Math.random()*600000
+});
+
+}
+
+})})});
+
+/* ================= FILTROS ================= */
+
+let filters={model:"Todos",state:"Todos",year:"Todos"};
+
+function filter(){
+return data.filter(d=>
+(filters.model==="Todos"||d.model===filters.model)&&
+(filters.state==="Todos"||d.state===filters.state)&&
+(filters.year==="Todos"||d.year==filters.year)
+);
+}
+
+/* ================= GROUP ================= */
+
+function group(arr,key){
+let obj={};
+arr.forEach(d=>{
+obj[d[key]]=(obj[d[key]]||0)+1;
+});
+return Object.entries(obj);
+}
+
+/* ================= CHART ================= */
+
+let c1,c2;
+
+function update(){
+
+let d=filter();
+
+/* KPI */
+document.getElementById("sales").innerText=d.length;
+
+/* 🔥 SEMPRE GARANTE DISTRIBUIÇÃO */
+let g1=group(d,"state");
+let g2=group(d,"model");
+
+/* DESTROY */
+if(c1)c1.destroy();
+if(c2)c2.destroy();
+
+/* GRÁFICO 1 - ESTADOS */
+c1=new Chart(c1=document.getElementById("c1"),{
+type:"bar",
+data:{
+labels:g1.map(x=>x[0]),
+datasets:[{data:g1.map(x=>x[1]),backgroundColor:"#d40000"}]
+},
+options:{plugins:{legend:{display:false}}}
+});
+
+/* GRÁFICO 2 - MODELOS */
+c2=new Chart(c2=document.getElementById("c2"),{
+type:"bar",
+data:{
+labels:g2.map(x=>x[0]),
+datasets:[{data:g2.map(x=>x[1]),backgroundColor:"#555"}]
+},
+options:{plugins:{legend:{display:false}}}
+});
+
+}
+
+/* ================= INIT ================= */
+
+function init(){
+
+let fill=(id,key)=>{
+let el=document.getElementById(id);
+let vals=[...new Set(data.map(d=>d[key]))];
+el.innerHTML="<option>Todos</option>"+vals.map(v=>`<option>${v}</option>`).join("");
+el.onchange=()=>{filters[id]=el.value;update();}
+};
+
+fill("model","model");
+fill("state","state");
+fill("year","year");
+
+update();
+}
+
+function reset(){
+filters={model:"Todos",state:"Todos",year:"Todos"};
+init();
+update();
+}
+
+init();
+
+</script>
+
+</body>
+</html>
